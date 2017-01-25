@@ -1,0 +1,64 @@
+version: '2'
+
+services:
+  reverse_proxy:
+     build:
+       context: nginx
+       args:
+         TEAMCITY_SERVER_IP: "172.35.0.21"
+     image: ugroop/reverse_proxy:0.1
+     networks:
+       default:
+         ipv4_address: 172.35.0.11
+     ports:
+     - "${HOST_IP}:80:80"
+     - "${HOST_IP}:443:443"
+     volumes:
+     - ${DOCKER_VOLUMES_DIR}/nginx/data:/usr/share/nginx
+     - ${DOCKER_VOLUMES_DIR}/nginx/config:/etc/nginx
+     - ${DOCKER_VOLUMES_DIR}/nginx/logs:/var/log/nginx
+
+  teamcity_server:
+     build:
+       context: teamcity/server
+     image: ugroop/teamcity_server:0.1
+     networks:
+       default:
+         ipv4_address: 172.35.0.21
+     ports:
+     - "8111:8111"
+     volumes:
+     - ${DOCKER_VOLUMES_DIR}/teamcity_server/data:/data/teamcity_server/datadir
+     - ${DOCKER_VOLUMES_DIR}/teamcity_server/logs:/opt/teamcity/logs
+     - ${DOCKER_VOLUMES_DIR}/mysql/data:/var/lib/mysql
+     - ${DOCKER_VOLUMES_DIR}/mysql/logs:/var/log/mysql
+
+  teamcity_linux_agent:
+     build:
+       context: teamcity/agent
+       args:
+         TEAMCITY_SERVER_URL: "http://172.35.0.21:8111/teamcity/"
+     image: ugroop/teamcity_linux_agent:0.1
+     networks:
+       default:
+         ipv4_address: 172.35.0.22
+     ports:
+     - "9090:9090"
+     volumes:
+     - ${DOCKER_VOLUMES_DIR}/teamcity_agent/config:/data/teamcity_agent/conf
+     - ${DOCKER_VOLUMES_DIR}/teamcity_agent/logs:/opt/buildagent/logs
+     - ${DOCKER_VOLUMES_DIR}/teamcity_agent/temp:/opt/buildagent/temp
+     - ${DOCKER_VOLUMES_DIR}/teamcity_agent/work:/opt/buildagent/work
+     - ${DOCKER_VOLUMES_DIR}/teamcity_agent/system:/opt/buildagent/system
+     - ${DOCKER_VOLUMES_DIR}/teamcity_agent/update:/opt/buildagent/update
+
+
+networks:
+   default:
+     driver: bridge
+     ipam:
+       driver: default
+       config:
+         - subnet: 172.35.0.0/24
+           gateway: 172.35.0.1
+
